@@ -1,6 +1,6 @@
 # Runtime Validation Report
 
-**Generated**: 2026-10-14T15:24:25-05:00  
+**Generated**: 2026-10-14T15:30:52-05:00  
 **Target**: `aurora-vida-karate`
 
 ## Summary
@@ -10,6 +10,7 @@
 | Startup | PASS | 0 | `APP_MODE=test node scripts/start-test-server.js`; `/api/health` returned 200 |
 | Integration Tests | PASS | 0 | `npm test`; 18 tests, 18 passed, 0 failed, 0 skipped |
 | Browser E2E | PASS | 0 | `npm run test:e2e`; 10 tests, 10 passed, 0 failed |
+| GitHub Actions | PASS | 0 | Run `38632542286`; ephemeral API, Karate, Playwright, and artifact upload all succeeded |
 | Syntax and whitespace | PASS | 0 | `node --check` on server/frontend scripts and `git diff --check` |
 
 **Overall**: PASS
@@ -52,4 +53,8 @@
 
 ## CI Status
 
-The GitHub Actions workflow is configured to start an ephemeral API, run Karate and Playwright, and upload reports. It has **not** been executed on GitHub because the workflow changes have not been pushed.
+The GitHub Actions workflow ran successfully on branch `automation/hu01-v1-1-20261014`. It started the ephemeral API, passed Karate and Playwright, and uploaded the report artifact.
+
+- Run: https://github.com/hermenalemberrubioloayza-create/aurora-vida-karate/actions/runs/38632542286
+- Report artifact: `hu01-test-reports` (596,804 bytes), available from the run's **Artifacts** section.
+- Branch pushed; no pull request was created.
