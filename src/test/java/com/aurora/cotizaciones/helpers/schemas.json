@@ -1,0 +1,26 @@
+{
+  "plazoItemSchema": {
+    "valor": "#number",
+    "descripcion": "#string"
+  },
+  "cotizacionSuccessSchema": {
+    "id": "#regex ^[0-9a-fA-F-]{36}$",
+    "fechaCotizacion": "#regex ^\\d{4}-\\d{2}-\\d{2}$",
+    "fechaVencimiento": "#regex ^\\d{4}-\\d{2}-\\d{2}$",
+    "vigente": "#boolean",
+    "fechaNacimiento": "#regex ^\\d{4}-\\d{2}-\\d{2}$",
+    "edadActuarial": "#number? _ >= 18 && _ <= 65",
+    "fumador": "#boolean",
+    "sumaAsegurada": "#number? _ >= 50000 && _ <= 500000",
+    "plazo": "#number",
+    "primaNetaAnual": "#number",
+    "primaTotalAnual": "#number",
+    "primaMensual": "#number"
+  },
+  "errorSchema": {
+    "codigo": "#string",
+    "mensaje": "#string",
+    "detalles": "#[]",
+    "traceId": "#string"
+  }
+}s
