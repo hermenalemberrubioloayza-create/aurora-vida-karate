@@ -5,6 +5,17 @@ on:
     branches: [main, 'automation/**']
   pull_request:
   workflow_dispatch:
+    inputs:
+      target_environment:
+        description: Environment for Karate. PROD runs only read-only smoke checks.
+        required: true
+        type: choice
+        default: ephemeral
+        options:
+          - ephemeral
+          - QA
+          - DEV
+          - PROD
 
 permissions:
   contents: read
@@ -16,6 +27,7 @@ concurrency:
 jobs:
   hu01-tests:
     name: Karate API contract and Playwright E2E
+    if: github.event_name != 'workflow_dispatch' || inputs.target_environment == 'ephemeral'
     runs-on: ubuntu-latest
     timeout-minutes: 20
 
@@ -100,3 +112,85 @@ jobs:
             target/surefire-reports/
             aurora-vida-playwright/playwright-report/
             aurora-vida-playwright/test-results/
+
+  karate-target-environment:
+    name: Karate ${{ inputs.target_environment }} checks
+    if: github.event_name == 'workflow_dispatch' && inputs.target_environment != 'ephemeral'
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    environment: ${{ inputs.target_environment }}
+
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+
+      - name: Set up Java
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: 17
+          cache: maven
+
+      - name: Validate target configuration
+        shell: bash
+        env:
+          KARATE_ENV: ${{ inputs.target_environment }}
+          AURORA_BASE_URL: ${{ vars.AURORA_BASE_URL }}
+          AURORA_HEALTH_URL: ${{ vars.AURORA_HEALTH_URL }}
+          AURORA_TEST_SUPPORT_URL: ${{ vars.AURORA_TEST_SUPPORT_URL }}
+        run: |
+          missing=()
+          [[ -n "$AURORA_BASE_URL" ]] || missing+=("AURORA_BASE_URL")
+          [[ -n "$AURORA_HEALTH_URL" ]] || missing+=("AURORA_HEALTH_URL")
+          if [[ "$KARATE_ENV" != "PROD" && -z "$AURORA_TEST_SUPPORT_URL" ]]; then
+            missing+=("AURORA_TEST_SUPPORT_URL")
+          fi
+
+          if (( ${#missing[@]} > 0 )); then
+            echo "::error title=Karate environment is not configured::Add these variables to the GitHub Environment $KARATE_ENV: ${missing[*]}"
+            exit 1
+          fi
+
+          echo "::notice title=Karate target selected::Environment $KARATE_ENV; production only runs read-only smoke tests."
+
+      - name: Run read-only production smoke tests
+        if: inputs.target_environment == 'PROD'
+        shell: bash
+        env:
+          KARATE_ENV: ${{ inputs.target_environment }}
+          AURORA_BASE_URL: ${{ vars.AURORA_BASE_URL }}
+          AURORA_HEALTH_URL: ${{ vars.AURORA_HEALTH_URL }}
+          API_KEY: ${{ secrets.API_KEY }}
+        run: |
+          if ! mvn --batch-mode --no-transfer-progress -Dkarate.env="$KARATE_ENV" -Dtest=ReadOnlySmokeRunner test; then
+            echo "::error title=Production smoke tests failed::Review the Karate and Surefire output; no write scenarios were run."
+            exit 1
+          fi
+          echo "::notice title=Production smoke tests passed::Read-only health and catalog checks passed."
+
+      - name: Run full contract tests in QA or DEV
+        if: inputs.target_environment == 'QA' || inputs.target_environment == 'DEV'
+        shell: bash
+        env:
+          KARATE_ENV: ${{ inputs.target_environment }}
+          AURORA_BASE_URL: ${{ vars.AURORA_BASE_URL }}
+          AURORA_HEALTH_URL: ${{ vars.AURORA_HEALTH_URL }}
+          AURORA_TEST_SUPPORT_URL: ${{ vars.AURORA_TEST_SUPPORT_URL }}
+          API_KEY: ${{ secrets.API_KEY }}
+        run: |
+          if ! mvn --batch-mode --no-transfer-progress -Dkarate.env="$KARATE_ENV" -Dtest=TestRunner test; then
+            echo "::error title=Karate contract tests failed::Review the Karate and Surefire output."
+            exit 1
+          fi
+          echo "::notice title=Karate contract tests passed::The full HU-01 contract suite passed in $KARATE_ENV."
+
+      - name: Upload target environment reports
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: hu01-karate-${{ inputs.target_environment }}-reports
+          if-no-files-found: warn
+          retention-days: 14
+          path: |
+            target/karate-reports/
+            target/surefire-reports/
