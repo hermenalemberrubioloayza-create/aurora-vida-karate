@@ -1,0 +1,102 @@
+name: HU-01 backend and browser tests
+
+on:
+  push:
+    branches: [main, 'automation/**']
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: hu01-tests-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  hu01-tests:
+    name: Karate API contract and Playwright E2E
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: npm
+          cache-dependency-path: |
+            package-lock.json
+            aurora-vida-playwright/package-lock.json
+
+      - name: Set up Java
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: 17
+          cache: maven
+
+      - name: Install API dependencies
+        run: npm ci
+
+      - name: Install Playwright dependencies
+        working-directory: aurora-vida-playwright
+        run: npm ci
+
+      - name: Install Chromium
+        working-directory: aurora-vida-playwright
+        run: npx playwright install --with-deps chromium
+
+      - name: Run Karate contract tests against ephemeral API
+        shell: bash
+        run: |
+          node scripts/start-test-server.js > "$RUNNER_TEMP/aurora-api.log" 2>&1 &
+          api_pid=$!
+
+          cleanup() {
+            kill "$api_pid" 2>/dev/null || true
+            wait "$api_pid" 2>/dev/null || true
+          }
+          trap cleanup EXIT
+
+          ready=false
+          for attempt in {1..30}; do
+            if ! kill -0 "$api_pid" 2>/dev/null; then
+              cat "$RUNNER_TEMP/aurora-api.log"
+              echo "The ephemeral API process exited before becoming ready."
+              exit 1
+            fi
+
+            if curl --fail --silent http://127.0.0.1:4000/api/health > /dev/null; then
+              ready=true
+              break
+            fi
+            sleep 1
+          done
+
+          if [ "$ready" != true ]; then
+            cat "$RUNNER_TEMP/aurora-api.log"
+            echo "The ephemeral API did not become ready within 30 seconds."
+            exit 1
+          fi
+
+          mvn --batch-mode --no-transfer-progress test
+
+      - name: Run Playwright E2E tests
+        run: npm run test:e2e
+
+      - name: Upload test reports
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: hu01-test-reports
+          if-no-files-found: warn
+          retention-days: 14
+          path: |
+            target/karate-reports/
+            target/surefire-reports/
+            aurora-vida-playwright/playwright-report/
+            aurora-vida-playwright/test-results/

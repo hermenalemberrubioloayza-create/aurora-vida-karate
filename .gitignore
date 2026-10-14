@@ -2,3 +2,5 @@ target/
 node_modules/
 .vscode/
 *.log
+/aurora-vida-playwright/playwright-report/
+/aurora-vida-playwright/test-results/

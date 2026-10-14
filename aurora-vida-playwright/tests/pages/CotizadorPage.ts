@@ -2,20 +2,17 @@ import { Page, Locator, expect } from '@playwright/test';
 
 export class CotizadorPage {
   readonly page: Page;
-
-  // Localizadores del Formulario
   readonly inputFechaNacimiento: Locator;
-  readonly selectFumador: Locator;
+  readonly radioFumadorSi: Locator;
+  readonly radioFumadorNo: Locator;
   readonly inputSumaAsegurada: Locator;
   readonly selectPlazo: Locator;
   readonly btnCalcular: Locator;
-
-  // Localizadores de Errores Inline
   readonly errorFechaNacimiento: Locator;
+  readonly errorFumador: Locator;
   readonly errorSumaAsegurada: Locator;
+  readonly errorPlazo: Locator;
   readonly errorGlobal: Locator;
-
-  // Localizadores del Resumen de Cotización
   readonly tarjetaResultado: Locator;
   readonly labelNumeroCotizacion: Locator;
   readonly labelFechaCotizacion: Locator;
@@ -25,42 +22,36 @@ export class CotizadorPage {
 
   constructor(page: Page) {
     this.page = page;
-
-    // Inputs (Uso de labels accesibles recomendados por Playwright)
-    this.inputFechaNacimiento = page.getByLabel(/fecha de nacimiento/i);
-    this.selectFumador = page.getByLabel(/¿fumas\?/i);
-    this.inputSumaAsegurada = page.getByLabel(/suma asegurada/i);
-    this.selectPlazo = page.getByLabel(/plazo/i);
-    this.btnCalcular = page.getByRole('button', { name: /calcular/i });
-
-    // Mensajes de error
-    this.errorFechaNacimiento = page.locator('#error-fechaNacimiento, [data-error="fechaNacimiento"]');
-    this.errorSumaAsegurada = page.locator('#error-sumaAsegurada, [data-error="sumaAsegurada"]');
+    this.inputFechaNacimiento = page.locator('#cotizador-fecha-nacimiento-input');
+    this.radioFumadorSi = page.locator('#cotizador-fumador-si-radio');
+    this.radioFumadorNo = page.locator('#cotizador-fumador-no-radio');
+    this.inputSumaAsegurada = page.locator('#cotizador-suma-asegurada-select');
+    this.selectPlazo = page.locator('#cotizador-plazo-select');
+    this.btnCalcular = page.locator('#cotizador-calcular-btn');
+    this.errorFechaNacimiento = page.locator('#cotizador-fecha-nacimiento-error-msg');
+    this.errorFumador = page.locator('#cotizador-fumador-error-msg');
+    this.errorSumaAsegurada = page.locator('#cotizador-suma-asegurada-error-msg');
+    this.errorPlazo = page.locator('#cotizador-plazo-error-msg');
     this.errorGlobal = page.getByRole('alert');
-
-    // Resultados
-    this.tarjetaResultado = page.locator('#resultado-cotizacion, [data-testid="resultado-cotizacion"]');
-    this.labelNumeroCotizacion = page.locator('#numero-cotizacion, [data-testid="cotizacion-id"]');
-    this.labelFechaCotizacion = page.locator('#fecha-cotizacion, [data-testid="cotizacion-fecha"]');
-    this.labelPrimaMensual = page.locator('#prima-mensual, [data-testid="prima-mensual"]');
-    this.labelPrimaAnual = page.locator('#prima-total-anual, [data-testid="prima-anual"]');
-    this.btnContratar = page.getByRole('button', { name: /contratar/i });
+    this.tarjetaResultado = page.locator('#cotizador-resultado');
+    this.labelNumeroCotizacion = page.locator('#cotizador-numero-text');
+    this.labelFechaCotizacion = page.locator('#cotizador-fecha-cotizacion-text');
+    this.labelPrimaMensual = page.locator('#cotizador-prima-mensual-text');
+    this.labelPrimaAnual = page.locator('#cotizador-prima-anual-text');
+    this.btnContratar = page.locator('#cotizador-contratar-btn');
   }
 
-  // Acciones
   async navegar() {
     await this.page.goto('/');
   }
 
   async completarFormulario(fechaNac: string, fumador: boolean, suma: string, plazo: string) {
-    await this.inputFechaNacimiento.fill(fechaNac);
-    
-    // Si fumador es select o radio button
-    if (await this.selectFumador.isVisible()) {
-      await this.selectFumador.selectOption(fumador ? 'si' : 'no');
-    }
-
-    await this.inputSumaAsegurada.fill(suma);
+    const fechaVisible = /^\d{4}-\d{2}-\d{2}$/.test(fechaNac)
+      ? `${fechaNac.slice(8, 10)}/${fechaNac.slice(5, 7)}/${fechaNac.slice(0, 4)}`
+      : fechaNac;
+    await this.inputFechaNacimiento.fill(fechaVisible);
+    await (fumador ? this.radioFumadorSi : this.radioFumadorNo).check();
+    await this.inputSumaAsegurada.selectOption(suma);
     await this.selectPlazo.selectOption(plazo);
   }
 
