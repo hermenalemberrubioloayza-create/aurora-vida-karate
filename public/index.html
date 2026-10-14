@@ -1,0 +1,140 @@
+<!doctype html>
+<html lang="es">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <meta name="theme-color" content="#eef2f8">
+    <title>Aurora Vida | Cotizador de seguro de vida</title>
+    <link rel="stylesheet" href="/styles.css">
+    <script src="/app.js" defer></script>
+  </head>
+  <body>
+    <header class="site-header">
+      <a class="brand" href="/" aria-label="Aurora Vida, inicio">
+        <span class="brand-mark" aria-hidden="true">A</span>
+        <span>Aurora Vida</span>
+      </a>
+      <span class="environment">Ambiente DEV</span>
+    </header>
+
+    <main class="layout" id="cotizador">
+      <section class="form-panel" aria-labelledby="page-title">
+        <h1 id="page-title">¿Cuánto cuesta proteger a tu familia?</h1>
+        <p class="intro-copy">Cotiza tu seguro de vida temporal en un minuto, sin registrarte.</p>
+
+        <form id="cotizador-form" novalidate>
+          <div class="field">
+            <label for="cotizador-fecha-nacimiento-input">Fecha de nacimiento</label>
+            <input id="cotizador-fecha-nacimiento-input" name="fechaNacimiento" type="text" inputmode="numeric" placeholder="dd/mm/aaaa" autocomplete="bday" aria-describedby="cotizador-fecha-nacimiento-error-msg">
+            <p class="field-error" id="cotizador-fecha-nacimiento-error-msg" data-error="fechaNacimiento" hidden>Ingresa tu fecha de nacimiento.</p>
+          </div>
+
+          <fieldset class="field radio-field">
+            <legend>¿Fumas?</legend>
+            <div class="radio-options">
+              <label class="radio-option" for="cotizador-fumador-si-radio">
+                <input id="cotizador-fumador-si-radio" name="fumador" type="radio" value="si" aria-describedby="cotizador-fumador-error-msg">
+                <span>Sí</span>
+              </label>
+              <label class="radio-option" for="cotizador-fumador-no-radio">
+                <input id="cotizador-fumador-no-radio" name="fumador" type="radio" value="no" aria-describedby="cotizador-fumador-error-msg">
+                <span>No</span>
+              </label>
+            </div>
+            <p class="field-help">Indica si fumas.</p>
+            <p class="field-error" id="cotizador-fumador-error-msg" data-error="fumador" hidden>Indica si fumas.</p>
+          </fieldset>
+
+          <div class="field">
+            <label for="cotizador-suma-asegurada-select">Suma asegurada</label>
+            <p class="field-help">Lo que recibirán tus beneficiarios.</p>
+            <select id="cotizador-suma-asegurada-select" name="sumaAsegurada" aria-describedby="cotizador-suma-asegurada-error-msg">
+              <option value="">Elige un monto</option>
+              <option value="50000">S/ 50,000</option>
+              <option value="60000">S/ 60,000</option>
+              <option value="70000">S/ 70,000</option>
+              <option value="80000">S/ 80,000</option>
+              <option value="90000">S/ 90,000</option>
+              <option value="100000">S/ 100,000</option>
+              <option value="110000">S/ 110,000</option>
+              <option value="120000">S/ 120,000</option>
+              <option value="130000">S/ 130,000</option>
+              <option value="140000">S/ 140,000</option>
+              <option value="150000">S/ 150,000</option>
+              <option value="160000">S/ 160,000</option>
+              <option value="170000">S/ 170,000</option>
+              <option value="180000">S/ 180,000</option>
+              <option value="190000">S/ 190,000</option>
+              <option value="200000">S/ 200,000</option>
+              <option value="210000">S/ 210,000</option>
+              <option value="220000">S/ 220,000</option>
+              <option value="230000">S/ 230,000</option>
+              <option value="240000">S/ 240,000</option>
+              <option value="250000">S/ 250,000</option>
+              <option value="260000">S/ 260,000</option>
+              <option value="270000">S/ 270,000</option>
+              <option value="280000">S/ 280,000</option>
+              <option value="290000">S/ 290,000</option>
+              <option value="300000">S/ 300,000</option>
+              <option value="310000">S/ 310,000</option>
+              <option value="320000">S/ 320,000</option>
+              <option value="330000">S/ 330,000</option>
+              <option value="340000">S/ 340,000</option>
+              <option value="350000">S/ 350,000</option>
+              <option value="360000">S/ 360,000</option>
+              <option value="370000">S/ 370,000</option>
+              <option value="380000">S/ 380,000</option>
+              <option value="390000">S/ 390,000</option>
+              <option value="400000">S/ 400,000</option>
+              <option value="410000">S/ 410,000</option>
+              <option value="420000">S/ 420,000</option>
+              <option value="430000">S/ 430,000</option>
+              <option value="440000">S/ 440,000</option>
+              <option value="450000">S/ 450,000</option>
+              <option value="460000">S/ 460,000</option>
+              <option value="470000">S/ 470,000</option>
+              <option value="480000">S/ 480,000</option>
+              <option value="490000">S/ 490,000</option>
+              <option value="500000">S/ 500,000</option>
+            </select>
+            <p class="field-error" id="cotizador-suma-asegurada-error-msg" data-error="sumaAsegurada" hidden>Elige la suma asegurada.</p>
+          </div>
+
+          <div class="field">
+            <label for="cotizador-plazo-select">Plazo</label>
+            <p class="field-help">Años que dura la cobertura.</p>
+            <select id="cotizador-plazo-select" name="plazo" aria-describedby="cotizador-plazo-error-msg">
+              <option value="">Cargando plazos...</option>
+            </select>
+            <p class="field-error" id="cotizador-plazo-error-msg" data-error="plazo" hidden>Elige el plazo.</p>
+          </div>
+
+          <div class="alert" id="cotizador-error-msg" role="alert" hidden></div>
+          <button class="button button-primary" id="cotizador-calcular-btn" type="submit" disabled>Calcular prima</button>
+        </form>
+      </section>
+
+      <section class="quote-panel" id="resultado-cotizacion" aria-labelledby="quote-title" aria-live="polite">
+        <h2 id="quote-title">Tu cotización</h2>
+        <p class="empty-message" id="cotizador-vacio-msg">Completa tus datos y calcula para ver tu prima.</p>
+        <div class="quote-result" id="cotizador-resultado" hidden>
+          <p class="monthly-premium"><span id="cotizador-prima-mensual-text"></span> <span class="premium-period">al mes</span></p>
+          <p class="annual-premium">o <strong id="cotizador-prima-anual-text"></strong> al año</p>
+          <dl class="quote-summary">
+            <div><dt>Edad</dt><dd id="cotizador-resumen-edad-text"></dd></div>
+            <div><dt>Fumador</dt><dd id="cotizador-resumen-fumador-text"></dd></div>
+            <div><dt>Suma asegurada</dt><dd id="cotizador-resumen-suma-asegurada-text"></dd></div>
+            <div><dt>Plazo</dt><dd id="cotizador-resumen-plazo-text"></dd></div>
+          </dl>
+          <dl class="quote-meta">
+            <div><dt>Cotización N.°</dt><dd id="cotizador-numero-text"></dd></div>
+            <div><dt>Fecha de cotización</dt><dd id="cotizador-fecha-cotizacion-text"></dd></div>
+            <div><dt>Válida hasta</dt><dd id="cotizador-fecha-vencimiento-text"></dd></div>
+          </dl>
+          <button class="button button-contract" id="cotizador-contratar-btn" type="button">Contratar</button>
+        </div>
+      </section>
+    </main>
+    <footer>Aurora Seguros es una empresa ficticia creada para práctica de QA.</footer>
+  </body>
+</html>
