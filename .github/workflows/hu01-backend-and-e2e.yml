@@ -2,7 +2,7 @@ name: HU-01 backend and browser tests
 
 on:
   push:
-    branches: [main]
+    branches: [main, 'automation/**']
   pull_request:
   workflow_dispatch:
 
