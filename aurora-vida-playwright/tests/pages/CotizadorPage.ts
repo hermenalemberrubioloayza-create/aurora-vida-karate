@@ -2,11 +2,13 @@ import { Page, Locator, expect } from '@playwright/test';
 
 export class CotizadorPage {
   readonly page: Page;
+  readonly tituloPagina: Locator;
   readonly inputFechaNacimiento: Locator;
   readonly radioFumadorSi: Locator;
   readonly radioFumadorNo: Locator;
   readonly inputSumaAsegurada: Locator;
   readonly selectPlazo: Locator;
+  readonly opcionesPlazo: Locator;
   readonly btnCalcular: Locator;
   readonly errorFechaNacimiento: Locator;
   readonly errorFumador: Locator;
@@ -22,11 +24,16 @@ export class CotizadorPage {
 
   constructor(page: Page) {
     this.page = page;
+    this.tituloPagina = page.getByRole('heading', {
+      name: '¿Cuánto cuesta proteger a tu familia?',
+      level: 1,
+    });
     this.inputFechaNacimiento = page.locator('#cotizador-fecha-nacimiento-input');
     this.radioFumadorSi = page.locator('#cotizador-fumador-si-radio');
     this.radioFumadorNo = page.locator('#cotizador-fumador-no-radio');
     this.inputSumaAsegurada = page.locator('#cotizador-suma-asegurada-select');
     this.selectPlazo = page.locator('#cotizador-plazo-select');
+    this.opcionesPlazo = this.selectPlazo.locator('option');
     this.btnCalcular = page.locator('#cotizador-calcular-btn');
     this.errorFechaNacimiento = page.locator('#cotizador-fecha-nacimiento-error-msg');
     this.errorFumador = page.locator('#cotizador-fumador-error-msg');

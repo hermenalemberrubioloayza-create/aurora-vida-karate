@@ -6,6 +6,13 @@ test.describe('HU-01: Cotizador Digital Aurora Vida', () => {
   let cotizadorPage: CotizadorPage;
   const apiHeaders = { 'X-Semillero': 'pw-hu01' };
 
+  test('Verificar carga inicial de la página', async () => {
+    await expect(cotizadorPage.tituloPagina).toBeVisible();
+    await expect(cotizadorPage.inputFechaNacimiento).toBeVisible();
+    await expect(cotizadorPage.btnCalcular).toBeEnabled();
+    await expect(cotizadorPage.opcionesPlazo).toHaveCount(5);
+  });
+
   test.beforeEach(async ({ page }) => {
     const resetResponse = await page.request.post('/api/test/reset', { headers: apiHeaders });
     expect(resetResponse.status()).toBe(204);
