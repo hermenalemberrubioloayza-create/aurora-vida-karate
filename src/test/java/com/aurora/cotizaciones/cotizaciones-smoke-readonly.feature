@@ -1,16 +1,20 @@
-@smoke @readonly @cotizaciones
-Feature: Verificación de disponibilidad de Aurora Vida sin modificar datos
+@regresion @smokeTest @happypath @readonly
+Feature: Disponibilidad de Aurora Vida sin crear ni modificar datos (apto para PROD)
 
-  Scenario: El endpoint de salud está disponible
+  Background:
+    * def schemas = read('helpers/schemas.json')
+
+  Scenario: El servicio responde e informa el ambiente correcto
+    # /api/health no está documentado en el contrato: solo se valida que responda.
     Given url healthUrl
     When method GET
     Then status 200
-    And match response == { status: 'ok' }
+    And match responseHeaders['X-Ambiente'][0] == ambienteEsperado
 
-  Scenario: El catálogo de plazos está disponible
+  Scenario: El catálogo de plazos devuelve 5, 10, 15 y 20 años
     Given url baseUrl
-    And path 'catalogos/plazos'
+    And path 'catalogos', 'plazos'
     When method GET
     Then status 200
-    And match response == '#[4]'
-    And match each response contains { valor: '#number', descripcion: '#string' }
+    And match response == '#[4] schemas.plazoItemSchema'
+    And match response[*].valor == [5, 10, 15, 20]

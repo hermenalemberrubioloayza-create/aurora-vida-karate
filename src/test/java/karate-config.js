@@ -1,48 +1,47 @@
 function fn() {
+  // Ambientes de Aurora Vida:
+  //   local   → API en tu máquina (docker run ... o npm run dev)          http://localhost:4000
+  //   efimero → API levantada por el pipeline dentro del runner (CI)     http://localhost:3000
+  //   dev / certi / prod → servicios publicados en Render
+  // Uso: mvn test -Dkarate.env=certi
   var env = (karate.env || 'local').toLowerCase();
-  var port = karate.properties['api.port'] || '4000';
-  var config = {
-    env: env,
-    transactionId: java.util.UUID.randomUUID().toString()
+
+  var ambientes = {
+    local:   { host: 'http://localhost:4000',                   ambiente: 'LOCAL' },
+    efimero: { host: 'http://localhost:3000',                   ambiente: 'LOCAL' },
+    dev:     { host: 'https://aurora-vida-dev.onrender.com',    ambiente: 'DEV' },
+    certi:   { host: 'https://aurora-vida-certi.onrender.com',  ambiente: 'CERTI' },
+    prod:    { host: 'https://aurora-vida-prod.onrender.com',   ambiente: 'PROD' }
   };
-
-  if (env === 'local' || env === 'ci') {
-    var localBase = 'http://localhost:' + port;
-    config.baseUrl = localBase + '/api/v1';
-    config.healthUrl = localBase + '/api/health';
-    config.testSupportUrl = localBase + '/api/test';
-  } else if (env === 'qa' || env === 'dev' || env === 'prod') {
-    config.baseUrl = java.lang.System.getenv('AURORA_BASE_URL');
-    config.healthUrl = java.lang.System.getenv('AURORA_HEALTH_URL');
-    config.testSupportUrl = java.lang.System.getenv('AURORA_TEST_SUPPORT_URL');
-    config.apiKey = java.lang.System.getenv('API_KEY');
-
-    if (!config.baseUrl || !config.healthUrl) {
-      throw new Error('AURORA_BASE_URL and AURORA_HEALTH_URL are required for environment ' + env.toUpperCase());
-    }
-    if (env !== 'prod' && !config.testSupportUrl) {
-      throw new Error('AURORA_TEST_SUPPORT_URL is required for environment ' + env.toUpperCase());
-    }
-    if (!/^https:\/\//i.test(config.baseUrl) || !/^https:\/\//i.test(config.healthUrl)) {
-      throw new Error('Remote environment URLs must use HTTPS');
-    }
-    if (env !== 'prod' && !/^https:\/\//i.test(config.testSupportUrl)) {
-      throw new Error('AURORA_TEST_SUPPORT_URL must use HTTPS');
-    }
-
-    config.baseUrl = config.baseUrl.replace(/\/+$/, '');
-    config.healthUrl = config.healthUrl.replace(/\/+$/, '');
-    if (config.testSupportUrl) {
-      config.testSupportUrl = config.testSupportUrl.replace(/\/+$/, '');
-    }
-  } else {
-    throw new Error('Unsupported karate.env "' + env + '". Use local, ci, qa, dev, or prod.');
+  var elegido = ambientes[env];
+  if (!elegido) {
+    throw new Error('Ambiente no soportado "' + env + '". Usa local, efimero, dev, certi o prod.');
   }
 
-  karate.log('Karate environment:', env.toUpperCase());
-  karate.log('API base URL:', config.baseUrl);
-  karate.configure('connectTimeout', 10000);
-  karate.configure('readTimeout', 15000);
+  // AURORA_HOST permite apuntar a otra URL sin tocar el código (por ejemplo, otro puerto local).
+  var host = java.lang.System.getenv('AURORA_HOST') || elegido.host;
 
+  // Cada semillero usa su propio espacio de datos y reloj en los ambientes compartidos.
+  // Se define con -Dsemillero=<usuario> o con la variable AURORA_SEMILLERO.
+  var semillero = karate.properties['semillero'] || java.lang.System.getenv('AURORA_SEMILLERO') || 'karate-hu01';
+
+  var config = {
+    env: env,
+    host: host,
+    baseUrl: host + '/api/v1',
+    healthUrl: host + '/api/health',
+    // PROD no expone soporte de pruebas: los escenarios que lo usan no deben correr ahí.
+    testSupportUrl: env === 'prod' ? null : host + '/api/test',
+    // Valor esperado del header X-Ambiente que devuelve la API.
+    ambienteEsperado: elegido.ambiente,
+    semillero: semillero
+  };
+
+  // Los servicios gratuitos de Render tardan hasta ~1 minuto en despertar.
+  var remoto = env === 'dev' || env === 'certi' || env === 'prod';
+  karate.configure('connectTimeout', remoto ? 30000 : 10000);
+  karate.configure('readTimeout', remoto ? 90000 : 15000);
+
+  karate.log('Ambiente:', env, '| Host:', host, '| Semillero:', semillero);
   return config;
 }
