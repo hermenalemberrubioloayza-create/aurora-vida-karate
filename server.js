@@ -263,7 +263,14 @@ app.use((error, req, res, next) => {
   });
 });
 
-const PORT = Number(process.env.PORT || 4000);
-app.listen(PORT, () => {
-  console.log(`?? Aurora Vida Mock corriendo en http://localhost:${PORT}/api/v1`);
-});
+function startServer(port = Number(process.env.PORT || 4000)) {
+  return app.listen(port, () => {
+    console.log(`Aurora Vida Mock corriendo en http://localhost:${port}/api/v1`);
+  });
+}
+
+if (require.main === module) {
+  startServer();
+}
+
+module.exports = { app, startServer };

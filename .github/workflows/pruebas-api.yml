@@ -27,19 +27,22 @@ concurrency:
   cancel-in-progress: true
 
 env:
-  # Versión de la API a probar. Se cambia en Settings → Secrets and variables → Actions → Variables.
-  AURORA_IMAGE: ${{ vars.AURORA_IMAGE || 'ghcr.io/jmaurtuaq2021/aurora-vida:latest' }}
   # Espacio de datos y reloj propio en los ambientes compartidos (header X-Semillero).
   AURORA_SEMILLERO: ${{ vars.AURORA_SEMILLERO || 'karate-hu01' }}
 
 jobs:
   efimero:
-    name: Karate · ambiente efímero
+    name: Karate · servidor local
     if: github.event_name != 'workflow_dispatch' || inputs.ambiente == 'efimero'
     runs-on: ubuntu-latest
     timeout-minutes: 15
     steps:
       - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: npm
 
       - uses: actions/setup-java@v4
         with:
@@ -47,51 +50,58 @@ jobs:
           java-version: '17'
           cache: maven
 
-      - name: Acceso a la imagen (solo si es privada)
+      - name: Instalar dependencias de la API
+        run: npm ci
+
+      - name: Levantar la API local y ejecutar Karate
         env:
-          GHCR_TOKEN: ${{ secrets.GHCR_TOKEN }}
+          PORT: 4000
+          AURORA_HOST: http://127.0.0.1:4000
+          ETIQUETAS: ${{ inputs.etiquetas }}
         run: |
-          if [ -n "$GHCR_TOKEN" ]; then
-            echo "$GHCR_TOKEN" | docker login ghcr.io -u "${{ vars.GHCR_USER || 'jmaurtuaq2021' }}" --password-stdin
-          else
-            echo "Sin GHCR_TOKEN: se asume que la imagen es pública."
+          APP_MODE=test node scripts/start-test-server.js > "$RUNNER_TEMP/aurora-api.log" 2>&1 &
+          api_pid=$!
+          trap 'kill "$api_pid" 2>/dev/null || true; wait "$api_pid" 2>/dev/null || true' EXIT
+
+          ready=false
+          for intento in $(seq 1 30); do
+            if ! kill -0 "$api_pid" 2>/dev/null; then
+              cat "$RUNNER_TEMP/aurora-api.log"
+              echo "::error::El proceso de la API terminó antes de iniciar."
+              exit 1
+            fi
+            if curl -fsS http://127.0.0.1:4000/api/health; then
+              echo
+              ready=true
+              break
+            fi
+            sleep 1
+          done
+          if [ "$ready" != true ]; then
+            cat "$RUNNER_TEMP/aurora-api.log"
+            echo "::error::La API local no respondió en 30 segundos."
+            exit 1
           fi
 
-      - name: Levantar la API oficial (ambiente efímero)
-        run: |
-          docker run -d --name aurora -p 3000:3000 \
-            -e APP_MODE=test -e AMBIENTE=LOCAL -e FUNCIONALIDADES=todas \
-            "$AURORA_IMAGE"
-          for intento in $(seq 1 30); do
-            if curl -fsS http://localhost:3000/api/health; then echo; exit 0; fi
-            sleep 2
-          done
-          echo "::error::La API no respondió en 60 segundos."
-          docker logs aurora
-          exit 1
-
-      - name: Versión de la API bajo prueba
-        run: |
           {
-            echo "### Ambiente efímero"
-            echo "Imagen: \`$AURORA_IMAGE\`"
+            echo "### API local"
+            echo 'Servidor del repositorio en \`http://127.0.0.1:4000\`'
             echo '```json'
-            curl -s http://localhost:3000/api/health
+            curl -fsS http://127.0.0.1:4000/api/health
             echo
             echo '```'
           } >> "$GITHUB_STEP_SUMMARY"
 
-      - name: Ejecutar Karate
-        env:
-          ETIQUETAS: ${{ inputs.etiquetas }}
-        run: |
           OPCIONES=()
           if [ -n "$ETIQUETAS" ]; then OPCIONES+=("-Dkarate.options=--tags $ETIQUETAS"); fi
-          mvn --batch-mode --no-transfer-progress test -Dkarate.env=efimero -Dsemillero="$AURORA_SEMILLERO" "${OPCIONES[@]}"
+          mvn --batch-mode --no-transfer-progress test \
+            -Dkarate.env=efimero \
+            -Dsemillero="$AURORA_SEMILLERO" \
+            "${OPCIONES[@]}"
 
-      - name: Logs de la API
+      - name: Logs de la API local
         if: failure()
-        run: docker logs aurora
+        run: cat "$RUNNER_TEMP/aurora-api.log"
 
       - name: Resumen de resultados
         if: always()
@@ -109,7 +119,7 @@ jobs:
       # Al terminar el job, GitHub destruye el runner y con él el contenedor: el ambiente desaparece.
 
   remoto:
-    name: Karate · ${{ inputs.ambiente }}
+    name: Karate · ${{ inputs.ambiente || 'remoto' }}
     if: github.event_name == 'workflow_dispatch' && inputs.ambiente != 'efimero'
     runs-on: ubuntu-latest
     timeout-minutes: 15

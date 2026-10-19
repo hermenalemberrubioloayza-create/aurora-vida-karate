@@ -114,7 +114,7 @@ jobs:
             aurora-vida-playwright/test-results/
 
   karate-target-environment:
-    name: Karate ${{ inputs.target_environment }} checks
+    name: Karate target environment checks
     if: github.event_name == 'workflow_dispatch' && inputs.target_environment != 'ephemeral'
     runs-on: ubuntu-latest
     timeout-minutes: 15
