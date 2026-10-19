@@ -1,0 +1,164 @@
+name: Pruebas API (Karate)
+
+# Pull Request y push a main → ambiente EFÍMERO: la API oficial de Aurora Vida se levanta
+#   dentro del runner, se corren las pruebas contra ella y se destruye al terminar.
+# Ejecución manual (Actions → Run workflow) → elegir ambiente: efimero, dev, certi o prod.
+on:
+  pull_request:
+  push:
+    branches: [main]
+  workflow_dispatch:
+    inputs:
+      ambiente:
+        description: 'Ambiente contra el que se corren las pruebas'
+        type: choice
+        default: efimero
+        options: [efimero, dev, certi, prod]
+      etiquetas:
+        description: 'Etiquetas a ejecutar (vacío = todas). Ej.: @smokeTest, @happypath, @negativo, @ca1. En prod se ignora: siempre @readonly'
+        type: string
+        default: ''
+
+permissions:
+  contents: read
+
+concurrency:
+  group: pruebas-api-${{ github.ref }}
+  cancel-in-progress: true
+
+env:
+  # Versión de la API a probar. Se cambia en Settings → Secrets and variables → Actions → Variables.
+  AURORA_IMAGE: ${{ vars.AURORA_IMAGE || 'ghcr.io/jmaurtuaq2021/aurora-vida:latest' }}
+  # Espacio de datos y reloj propio en los ambientes compartidos (header X-Semillero).
+  AURORA_SEMILLERO: ${{ vars.AURORA_SEMILLERO || 'karate-hu01' }}
+
+jobs:
+  efimero:
+    name: Karate · ambiente efímero
+    if: github.event_name != 'workflow_dispatch' || inputs.ambiente == 'efimero'
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '17'
+          cache: maven
+
+      - name: Acceso a la imagen (solo si es privada)
+        env:
+          GHCR_TOKEN: ${{ secrets.GHCR_TOKEN }}
+        run: |
+          if [ -n "$GHCR_TOKEN" ]; then
+            echo "$GHCR_TOKEN" | docker login ghcr.io -u "${{ vars.GHCR_USER || 'jmaurtuaq2021' }}" --password-stdin
+          else
+            echo "Sin GHCR_TOKEN: se asume que la imagen es pública."
+          fi
+
+      - name: Levantar la API oficial (ambiente efímero)
+        run: |
+          docker run -d --name aurora -p 3000:3000 \
+            -e APP_MODE=test -e AMBIENTE=LOCAL -e FUNCIONALIDADES=todas \
+            "$AURORA_IMAGE"
+          for intento in $(seq 1 30); do
+            if curl -fsS http://localhost:3000/api/health; then echo; exit 0; fi
+            sleep 2
+          done
+          echo "::error::La API no respondió en 60 segundos."
+          docker logs aurora
+          exit 1
+
+      - name: Versión de la API bajo prueba
+        run: |
+          {
+            echo "### Ambiente efímero"
+            echo "Imagen: \`$AURORA_IMAGE\`"
+            echo '```json'
+            curl -s http://localhost:3000/api/health
+            echo
+            echo '```'
+          } >> "$GITHUB_STEP_SUMMARY"
+
+      - name: Ejecutar Karate
+        env:
+          ETIQUETAS: ${{ inputs.etiquetas }}
+        run: |
+          OPCIONES=()
+          if [ -n "$ETIQUETAS" ]; then OPCIONES+=("-Dkarate.options=--tags $ETIQUETAS"); fi
+          mvn --batch-mode --no-transfer-progress test -Dkarate.env=efimero -Dsemillero="$AURORA_SEMILLERO" "${OPCIONES[@]}"
+
+      - name: Logs de la API
+        if: failure()
+        run: docker logs aurora
+
+      - name: Resumen de resultados
+        if: always()
+        run: bash .github/scripts/resumen-karate.sh
+
+      - name: Publicar reporte de Karate
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: reporte-karate-efimero
+          path: target/karate-reports/
+          if-no-files-found: warn
+          retention-days: 14
+
+      # Al terminar el job, GitHub destruye el runner y con él el contenedor: el ambiente desaparece.
+
+  remoto:
+    name: Karate · ${{ inputs.ambiente }}
+    if: github.event_name == 'workflow_dispatch' && inputs.ambiente != 'efimero'
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '17'
+          cache: maven
+
+      - name: Despertar el servicio (plan gratuito de Render)
+        env:
+          AMBIENTE: ${{ inputs.ambiente }}
+        run: |
+          URL="https://aurora-vida-${AMBIENTE}.onrender.com/api/health"
+          for intento in $(seq 1 12); do
+            if curl -fsS -m 20 "$URL"; then echo; exit 0; fi
+            echo "Esperando a que despierte ($intento/12)..."
+            sleep 10
+          done
+          echo "::error::$URL no respondió."
+          exit 1
+
+      - name: Ejecutar Karate
+        env:
+          AMBIENTE: ${{ inputs.ambiente }}
+          ETIQUETAS: ${{ inputs.etiquetas }}
+        run: |
+          OPCIONES=()
+          # En PROD no hay soporte de pruebas: solo se corren los escenarios @readonly y se ignoran las etiquetas.
+          if [ "$AMBIENTE" = "prod" ]; then
+            RUNNER=ReadOnlySmokeRunner
+          else
+            RUNNER=TestRunner
+            if [ -n "$ETIQUETAS" ]; then OPCIONES+=("-Dkarate.options=--tags $ETIQUETAS"); fi
+          fi
+          mvn --batch-mode --no-transfer-progress test -Dkarate.env="$AMBIENTE" -Dsemillero="$AURORA_SEMILLERO" -Dtest="$RUNNER" "${OPCIONES[@]}"
+
+      - name: Resumen de resultados
+        if: always()
+        run: bash .github/scripts/resumen-karate.sh
+
+      - name: Publicar reporte de Karate
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: reporte-karate-${{ inputs.ambiente }}
+          path: target/karate-reports/
+          if-no-files-found: warn
+          retention-days: 14

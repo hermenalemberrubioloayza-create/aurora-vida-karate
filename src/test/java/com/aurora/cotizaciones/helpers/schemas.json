@@ -1,26 +1,30 @@
 {
   "plazoItemSchema": {
-    "valor": "#number",
+    "valor": "#number? [5, 10, 15, 20].indexOf(_) >= 0",
     "descripcion": "#string"
   },
-  "cotizacionSuccessSchema": {
-    "id": "#regex ^[0-9a-fA-F-]{36}$",
-    "fechaCotizacion": "#regex ^\\d{4}-\\d{2}-\\d{2}$",
-    "fechaVencimiento": "#regex ^\\d{4}-\\d{2}-\\d{2}$",
+  "cotizacionSchema": {
+    "id": "#uuid",
+    "fechaCotizacion": "#regex \\d{4}-\\d{2}-\\d{2}",
+    "fechaVencimiento": "#regex \\d{4}-\\d{2}-\\d{2}",
     "vigente": "#boolean",
-    "fechaNacimiento": "#regex ^\\d{4}-\\d{2}-\\d{2}$",
+    "fechaNacimiento": "#regex \\d{4}-\\d{2}-\\d{2}",
     "edadActuarial": "#number? _ >= 18 && _ <= 65",
     "fumador": "#boolean",
-    "sumaAsegurada": "#number? _ >= 50000 && _ <= 500000",
-    "plazo": "#number",
-    "primaNetaAnual": "#number",
-    "primaTotalAnual": "#number",
-    "primaMensual": "#number"
+    "sumaAsegurada": "#number? _ >= 50000 && _ <= 500000 && _ % 10000 == 0",
+    "plazo": "#number? [5, 10, 15, 20].indexOf(_) >= 0",
+    "primaNetaAnual": "#number? _ > 0",
+    "primaTotalAnual": "#number? _ > 0",
+    "primaMensual": "#number? _ >= 20"
+  },
+  "detalleSchema": {
+    "campo": "#string",
+    "mensaje": "#string"
   },
   "errorSchema": {
-    "codigo": "#string",
-    "mensaje": "#string",
-    "detalles": "#[]",
+    "codigo": "#regex [A-Z_]+",
+    "mensaje": "#string? _.length > 0",
+    "detalles": "#array? detallesValidos(_)",
     "traceId": "#string"
   }
 }

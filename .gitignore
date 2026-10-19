@@ -4,3 +4,5 @@ node_modules/
 *.log
 /aurora-vida-playwright/playwright-report/
 /aurora-vida-playwright/test-results/
+/playwright-report/
+/test-results/
