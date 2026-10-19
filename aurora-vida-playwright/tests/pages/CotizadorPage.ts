@@ -1,64 +1,47 @@
-import { Page, Locator, expect } from '@playwright/test';
+import { Locator, Page, Response } from '@playwright/test';
 
 export class CotizadorPage {
   readonly page: Page;
   readonly tituloPagina: Locator;
   readonly inputFechaNacimiento: Locator;
-  readonly radioFumadorSi: Locator;
-  readonly radioFumadorNo: Locator;
+  readonly checkboxFumador: Locator;
   readonly inputSumaAsegurada: Locator;
   readonly selectPlazo: Locator;
   readonly opcionesPlazo: Locator;
   readonly btnCalcular: Locator;
-  readonly errorFechaNacimiento: Locator;
-  readonly errorFumador: Locator;
-  readonly errorSumaAsegurada: Locator;
-  readonly errorPlazo: Locator;
   readonly errorGlobal: Locator;
   readonly tarjetaResultado: Locator;
-  readonly labelNumeroCotizacion: Locator;
-  readonly labelFechaCotizacion: Locator;
   readonly labelPrimaMensual: Locator;
-  readonly labelPrimaAnual: Locator;
-  readonly btnContratar: Locator;
+  readonly sumaAseguradaResultado: Locator;
+  readonly plazoResultado: Locator;
 
   constructor(page: Page) {
     this.page = page;
     this.tituloPagina = page.getByRole('heading', {
-      name: '¿Cuánto cuesta proteger a tu familia?',
+      name: 'Un futuro más tranquilo empieza hoy.',
       level: 1,
     });
-    this.inputFechaNacimiento = page.locator('#cotizador-fecha-nacimiento-input');
-    this.radioFumadorSi = page.locator('#cotizador-fumador-si-radio');
-    this.radioFumadorNo = page.locator('#cotizador-fumador-no-radio');
-    this.inputSumaAsegurada = page.locator('#cotizador-suma-asegurada-select');
-    this.selectPlazo = page.locator('#cotizador-plazo-select');
+    this.inputFechaNacimiento = page.getByLabel('Fecha de nacimiento');
+    this.checkboxFumador = page.getByLabel('¿Fumas actualmente?');
+    this.inputSumaAsegurada = page.getByLabel('Suma asegurada');
+    this.selectPlazo = page.getByLabel('Plazo de cobertura');
     this.opcionesPlazo = this.selectPlazo.locator('option');
-    this.btnCalcular = page.locator('#cotizador-calcular-btn');
-    this.errorFechaNacimiento = page.locator('#cotizador-fecha-nacimiento-error-msg');
-    this.errorFumador = page.locator('#cotizador-fumador-error-msg');
-    this.errorSumaAsegurada = page.locator('#cotizador-suma-asegurada-error-msg');
-    this.errorPlazo = page.locator('#cotizador-plazo-error-msg');
+    this.btnCalcular = page.getByRole('button', { name: 'Ver mi cotización' });
     this.errorGlobal = page.getByRole('alert');
-    this.tarjetaResultado = page.locator('#cotizador-resultado');
-    this.labelNumeroCotizacion = page.locator('#cotizador-numero-text');
-    this.labelFechaCotizacion = page.locator('#cotizador-fecha-cotizacion-text');
-    this.labelPrimaMensual = page.locator('#cotizador-prima-mensual-text');
-    this.labelPrimaAnual = page.locator('#cotizador-prima-anual-text');
-    this.btnContratar = page.locator('#cotizador-contratar-btn');
+    this.tarjetaResultado = page.getByRole('heading', { name: 'Tu protección está lista' });
+    this.labelPrimaMensual = page.getByTestId('monthly-premium');
+    this.sumaAseguradaResultado = page.getByTestId('result-amount');
+    this.plazoResultado = page.getByTestId('result-term');
   }
 
   async navegar() {
     await this.page.goto('/');
   }
 
-  async completarFormulario(fechaNac: string, fumador: boolean, suma: string, plazo: string) {
-    const fechaVisible = /^\d{4}-\d{2}-\d{2}$/.test(fechaNac)
-      ? `${fechaNac.slice(8, 10)}/${fechaNac.slice(5, 7)}/${fechaNac.slice(0, 4)}`
-      : fechaNac;
-    await this.inputFechaNacimiento.fill(fechaVisible);
-    await (fumador ? this.radioFumadorSi : this.radioFumadorNo).check();
-    await this.inputSumaAsegurada.selectOption(suma);
+  async completarFormulario(fechaNacimiento: string, fumador: boolean, suma: string, plazo: string) {
+    await this.inputFechaNacimiento.fill(fechaNacimiento);
+    await this.checkboxFumador.setChecked(fumador);
+    await this.inputSumaAsegurada.fill(suma);
     await this.selectPlazo.selectOption(plazo);
   }
 
@@ -66,7 +49,22 @@ export class CotizadorPage {
     await this.btnCalcular.click();
   }
 
-  async clickContratar() {
-    await this.btnContratar.click();
+  async calcularYCapturarCotizacion(): Promise<Response> {
+    const response = this.page.waitForResponse((candidate) =>
+      candidate.url().includes('/api/v1/cotizaciones') &&
+      candidate.request().method() === 'POST',
+    );
+    await this.clickCalcular();
+    return response;
+  }
+
+  async getDocumentScrollWidth(): Promise<number> {
+    return this.page.evaluate(() => document.documentElement.scrollWidth);
+  }
+
+  async isFormValid(): Promise<boolean> {
+    return this.page
+      .getByRole('form', { name: 'Cotización de seguro de vida' })
+      .evaluate((form) => (form as HTMLFormElement).checkValidity());
   }
 }

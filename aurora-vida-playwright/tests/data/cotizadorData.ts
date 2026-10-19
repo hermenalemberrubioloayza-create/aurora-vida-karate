@@ -7,7 +7,7 @@ export const cotizadorData = {
     plazo: '10',
     esperado: {
       primaMensual: '20.00',
-      primaTotalAnual: '129.78',
+      primaTotalAnual: 129.78,
     },
   },
   clienteCuarentaYCincoAnios: {
@@ -17,7 +17,7 @@ export const cotizadorData = {
     plazo: '20',
     esperado: {
       primaMensual: '148.71',
-      primaTotalAnual: '1,652.38',
+      primaTotalAnual: 1652.38,
     },
   },
   clienteMenorDeEdad: {

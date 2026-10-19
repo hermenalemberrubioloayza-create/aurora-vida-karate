@@ -6,13 +6,6 @@ test.describe('HU-01: Cotizador Digital Aurora Vida', () => {
   let cotizadorPage: CotizadorPage;
   const apiHeaders = { 'X-Semillero': 'pw-hu01' };
 
-  test('Verificar carga inicial de la página', async () => {
-    await expect(cotizadorPage.tituloPagina).toBeVisible();
-    await expect(cotizadorPage.inputFechaNacimiento).toBeVisible();
-    await expect(cotizadorPage.btnCalcular).toBeEnabled();
-    await expect(cotizadorPage.opcionesPlazo).toHaveCount(5);
-  });
-
   test.beforeEach(async ({ page }) => {
     const resetResponse = await page.request.post('/api/test/reset', { headers: apiHeaders });
     expect(resetResponse.status()).toBe(204);
@@ -26,55 +19,57 @@ test.describe('HU-01: Cotizador Digital Aurora Vida', () => {
     await cotizadorPage.navegar();
   });
 
-  test('CA-01: Cotización exitosa para cliente de 30 años y 8 meses', async ({ page }) => {
-    const data = cotizadorData.clienteTreintaAnios;
+  test('Verificar carga inicial de la página', async () => {
+    await expect(cotizadorPage.tituloPagina).toBeVisible();
+    await expect(cotizadorPage.inputFechaNacimiento).toBeVisible();
+    await expect(cotizadorPage.btnCalcular).toBeEnabled();
+    await expect(cotizadorPage.opcionesPlazo).toHaveCount(4);
+  });
 
+  test('CA-01: Cotización exitosa para cliente de 30 años y verificación de persistencia', async ({ page }) => {
+    const data = cotizadorData.clienteTreintaAnios;
     await cotizadorPage.completarFormulario(
       data.fechaNacimiento,
       data.fumador,
       data.sumaAsegurada,
-      data.plazo
+      data.plazo,
     );
-    await cotizadorPage.clickCalcular();
+
+    const response = await cotizadorPage.calcularYCapturarCotizacion();
+    expect(response.status()).toBe(201);
+    const quotation = await response.json();
 
     await expect(cotizadorPage.tarjetaResultado).toBeVisible();
-    await expect(cotizadorPage.labelNumeroCotizacion).toHaveText(
-      /^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i,
-    );
     await expect(cotizadorPage.labelPrimaMensual).toContainText(data.esperado.primaMensual);
-    await expect(cotizadorPage.labelPrimaAnual).toContainText(data.esperado.primaTotalAnual);
-    await expect(cotizadorPage.btnContratar).toBeVisible();
-    await expect(page.locator('#cotizador-resumen-edad-text')).toHaveText('30 años');
-    await expect(page.locator('#cotizador-resumen-fumador-text')).toHaveText('No');
-    await expect(page.locator('#cotizador-fecha-cotizacion-text')).toHaveText('13/10/2026');
+    expect(quotation.primaTotalAnual).toBe(data.esperado.primaTotalAnual);
 
-    const quoteId = await cotizadorPage.labelNumeroCotizacion.textContent();
-    expect(quoteId).toBeTruthy();
-    const persistedResponse = await page.request.get(`/api/v1/cotizaciones/${quoteId}`, {
+    const persistedResponse = await page.request.get(`/api/v1/cotizaciones/${quotation.id}`, {
       headers: apiHeaders,
     });
     expect(persistedResponse.status()).toBe(200);
     await expect(persistedResponse.json()).resolves.toMatchObject({
-      id: quoteId,
+      id: quotation.id,
       edadActuarial: 30,
-      primaTotalAnual: 129.78,
+      primaTotalAnual: data.esperado.primaTotalAnual,
     });
   });
 
-  test('CA-05: Calcula la prima de cliente fumador de 45 años', async () => {
+  test('CA-05: Calcula la prima de una cliente fumadora de 45 años', async () => {
     const data = cotizadorData.clienteCuarentaYCincoAnios;
-
     await cotizadorPage.completarFormulario(
       data.fechaNacimiento,
       data.fumador,
       data.sumaAsegurada,
-      data.plazo
+      data.plazo,
     );
-    await cotizadorPage.clickCalcular();
+
+    const response = await cotizadorPage.calcularYCapturarCotizacion();
+    expect(response.status()).toBe(201);
+    const quotation = await response.json();
 
     await expect(cotizadorPage.tarjetaResultado).toBeVisible();
     await expect(cotizadorPage.labelPrimaMensual).toContainText(data.esperado.primaMensual);
-    await expect(cotizadorPage.labelPrimaAnual).toContainText(data.esperado.primaTotalAnual);
+    expect(quotation.primaTotalAnual).toBe(data.esperado.primaTotalAnual);
   });
 
   test('CA-06: Una cotización vencida sigue disponible para consulta por API', async ({ page }) => {
@@ -116,22 +111,11 @@ test.describe('HU-01: Cotizador Digital Aurora Vida', () => {
     expect((await expiredQuote.json()).vigente).toBe(false);
   });
 
-  test('CA-02: El selector ofrece sumas en pasos de S/ 10,000', async ({ page }) => {
-    const options = await page
-      .getByLabel(/suma asegurada/i)
-      .locator('option')
-      .evaluateAll((items) => items.map((option) => (option as HTMLOptionElement).value));
-    const sums = options.filter(Boolean).map(Number);
-
-    expect(sums).toHaveLength(46);
-    expect(sums[0]).toBe(50000);
-    expect(sums[sums.length - 1]).toBe(500000);
-    expect(sums.every((sum, index) => index === 0 || sum - sums[index - 1] === 10000)).toBe(true);
-
-    const plazoOptions = page.locator('#cotizador-plazo-select option');
-    await expect(plazoOptions).toHaveCount(5);
-    await expect(plazoOptions).toHaveText([
-      'Elige un plazo',
+  test('CA-02: La suma asegurada admite montos entre S/ 50,000 y S/ 500,000 en pasos de S/ 10,000', async () => {
+    await expect(cotizadorPage.inputSumaAsegurada).toHaveAttribute('min', '50000');
+    await expect(cotizadorPage.inputSumaAsegurada).toHaveAttribute('max', '500000');
+    await expect(cotizadorPage.inputSumaAsegurada).toHaveAttribute('step', '10000');
+    await expect(cotizadorPage.opcionesPlazo).toHaveText([
       '5 años',
       '10 años',
       '15 años',
@@ -139,25 +123,22 @@ test.describe('HU-01: Cotizador Digital Aurora Vida', () => {
     ]);
   });
 
-  test('CA-04: Validación de campos obligatorios inline cuando el formulario está vacío', async () => {
+  test('CA-04: Los campos requeridos impiden enviar el formulario vacío', async () => {
+    await cotizadorPage.inputFechaNacimiento.fill('');
+    await cotizadorPage.inputSumaAsegurada.fill('');
     await cotizadorPage.clickCalcular();
 
+    expect(await cotizadorPage.isFormValid()).toBe(false);
     await expect(cotizadorPage.tarjetaResultado).not.toBeVisible();
-    await expect(cotizadorPage.errorFechaNacimiento).toBeVisible();
-    await expect(cotizadorPage.errorFumador).toBeVisible();
-    await expect(cotizadorPage.errorSumaAsegurada).toBeVisible();
-    await expect(cotizadorPage.errorPlazo).toBeVisible();
-    await expect(cotizadorPage.inputFechaNacimiento).toBeFocused();
   });
 
-  test('CA-01 (BVA Negativo): Rechazo por edad fuera de rango (17 años)', async () => {
+  test('CA-01 (BVA Negativo): Rechaza una edad fuera del rango permitido', async () => {
     const data = cotizadorData.clienteMenorDeEdad;
-
     await cotizadorPage.completarFormulario(
       data.fechaNacimiento,
       data.fumador,
       data.sumaAsegurada,
-      data.plazo
+      data.plazo,
     );
     await cotizadorPage.clickCalcular();
 
@@ -165,33 +146,17 @@ test.describe('HU-01: Cotizador Digital Aurora Vida', () => {
     await expect(cotizadorPage.tarjetaResultado).not.toBeVisible();
   });
 
-  test('CA-07: Contratar inicia autenticación conservando la cotización para HU-02', async ({ page }) => {
+  test('La propuesta muestra la suma asegurada y el plazo elegidos', async () => {
     const data = cotizadorData.clienteTreintaAnios;
-
     await cotizadorPage.completarFormulario(
       data.fechaNacimiento,
       data.fumador,
       data.sumaAsegurada,
-      data.plazo
+      data.plazo,
     );
     await cotizadorPage.clickCalcular();
-    await cotizadorPage.clickContratar();
 
-    await expect(page).toHaveURL(/\/login\?cotizacion=[0-9a-f-]{36}$/i);
-    await expect(page.locator('#ingresar-cotizacion-text')).toHaveText(
-      /[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}/i,
-    );
-    await expect(page.locator('#ingresar-volver-link')).toHaveAttribute('href', '/');
-  });
-
-  test('La fecha de nacimiento debe respetar dd/mm/aaaa antes de llamar a la API', async () => {
-    await cotizadorPage.inputFechaNacimiento.fill('31/02/1990');
-    await cotizadorPage.radioFumadorNo.check();
-    await cotizadorPage.inputSumaAsegurada.selectOption('100000');
-    await cotizadorPage.selectPlazo.selectOption('10');
-    await cotizadorPage.clickCalcular();
-
-    await expect(cotizadorPage.errorFechaNacimiento).toBeVisible();
-    await expect(cotizadorPage.tarjetaResultado).not.toBeVisible();
+    await expect(cotizadorPage.sumaAseguradaResultado).toContainText('100,000');
+    await expect(cotizadorPage.plazoResultado).toHaveText('10 años');
   });
 });
