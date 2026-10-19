@@ -14,6 +14,7 @@ test.describe('HU-01: Cotizador Digital Aurora Vida', () => {
     await expect(cotizadorPage.quoteForm).toBeVisible();
     await expect(cotizadorPage.submitButton).toBeEnabled();
   });
+
   test('El cliente obtiene una cotización al completar el formulario', async ({ page }) => {
     const cotizadorPage = new CotizadorPage(page);
     await cotizadorPage.open();

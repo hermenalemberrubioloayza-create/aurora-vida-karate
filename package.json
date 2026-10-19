@@ -4,7 +4,7 @@
   "description": "",
   "main": "server.js",
   "scripts": {
-    "test": "mvn test",
+    "test": "playwright test",
     "test:e2e": "npm --prefix aurora-vida-playwright test",
     "test:workspace": "playwright test",
     "start:test": "node scripts/start-test-server.js",
@@ -16,6 +16,7 @@
   "type": "commonjs",
   "dependencies": {
     "cors": "^2.8.6",
+    "dotenv": "^16.4.5",
     "express": "^5.3.0"
   },
   "devDependencies": {

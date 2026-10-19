@@ -11,12 +11,12 @@ export class CotizadorPage {
   get heading(): Locator {
     return this.page.getByRole('heading', {
       level: 1,
-      name: /¿Cuánto cuesta proteger a tu familia|Un futuro/i,
+      name: /Un futuro más tranquilo empieza hoy\.|Un futuro/i,
     });
   }
 
   get monthlyPremium(): Locator {
-    return this.page.getByTestId('cotizador-prima-mensual-text');
+    return this.page.locator('#monthly-premium, [data-testid="monthly-premium"]');
   }
 
   get quoteError(): Locator {
@@ -32,18 +32,18 @@ export class CotizadorPage {
   }
 
   get submitButton(): Locator {
-    return this.page.getByRole('button', { name: /Calcular/i });
+    return this.page.getByRole('button', { name: /Ver mi cotización|Calcular/i });
   }
 
   async submitQuote(quote: CotizacionRequest): Promise<void> {
     await this.page.getByLabel('Fecha de nacimiento').fill(quote.fechaNacimiento);
-    await this.page.getByLabel('Suma asegurada').selectOption(String(quote.sumaAsegurada));
-    await this.page.getByLabel(/Plazo/i).selectOption(String(quote.plazo));
+    await this.page.getByLabel('Suma asegurada').fill(String(quote.sumaAsegurada));
+    await this.page.getByLabel(/Plazo de cobertura/i).selectOption(String(quote.plazo));
 
-        if (quote.fumador) {
-      await this.page.locator('#cotizador-fumador-si-radio, [data-testid="cotizador-fumador-si-radio"], input[value="si"], input[value="true"]').check().catch(async () => { await this.page.getByLabel(/^Sí$/i).check(); });
+    if (quote.fumador) {
+      await this.page.getByLabel(/¿Fumas actualmente\?/i).check();
     } else {
-      await this.page.locator('#cotizador-fumador-no-radio, [data-testid="cotizador-fumador-no-radio"], input[value="no"], input[value="false"]').check().catch(async () => { await this.page.getByLabel(/^No$/i).check(); });
+      await this.page.getByLabel(/¿Fumas actualmente\?/i).uncheck();
     }
 
     await this.submitButton.click();

@@ -1,3 +1,5 @@
+require('dotenv').config();
+
 const express = require('express');
 const cors = require('cors');
 const crypto = require('crypto');
@@ -70,9 +72,11 @@ function fechaTrasDias(fecha, dias) {
   return result.toISOString().slice(0, 10);
 }
 
+require('dotenv').config();
+
 // 1. Health check
 app.get('/api/health', (req, res) => {
-  return res.status(200).json({ status: 'UP' });
+  return res.status(200).json({ status: 'UP', estado: 'OK' });
 });
 
 // 2. Cat�logo de plazos
