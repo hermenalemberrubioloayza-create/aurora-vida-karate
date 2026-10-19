@@ -1,7 +1,6 @@
 name: Pruebas API (Karate)
 
-# Pull Request y push a main → ambiente EFÍMERO: la API oficial de Aurora Vida se levanta
-#   dentro del runner, se corren las pruebas contra ella y se destruye al terminar.
+# Pull Request y push a main → el runner inicia la API de este repositorio y ejecuta Karate.
 # Ejecución manual (Actions → Run workflow) → elegir ambiente: efimero, dev, certi o prod.
 on:
   pull_request:
@@ -116,10 +115,10 @@ jobs:
           if-no-files-found: warn
           retention-days: 14
 
-      # Al terminar el job, GitHub destruye el runner y con él el contenedor: el ambiente desaparece.
+      # El runner y la API local se descartan al terminar el job.
 
   remoto:
-    name: Karate · ${{ inputs.ambiente || 'remoto' }}
+    name: Karate · ambiente remoto (solo ejecución manual)
     if: github.event_name == 'workflow_dispatch' && inputs.ambiente != 'efimero'
     runs-on: ubuntu-latest
     timeout-minutes: 15

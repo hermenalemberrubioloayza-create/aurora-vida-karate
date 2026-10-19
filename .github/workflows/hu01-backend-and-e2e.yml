@@ -63,6 +63,8 @@ jobs:
         run: npx playwright install --with-deps chromium
 
       - name: Run Karate contract tests against ephemeral API
+        env:
+          PORT: 4000
         shell: bash
         run: |
           node scripts/start-test-server.js > "$RUNNER_TEMP/aurora-api.log" 2>&1 &
