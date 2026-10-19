@@ -100,6 +100,9 @@ jobs:
           mvn --batch-mode --no-transfer-progress test
 
       - name: Run Playwright E2E tests
+        env:
+          PORT: 4000
+          APP_MODE: test
         run: npm run test:e2e
 
       - name: Upload test reports
